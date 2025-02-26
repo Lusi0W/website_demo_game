@@ -1,0 +1,670 @@
+<!DOCTYPE html><html lang="en"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anti-Fraud Adventure</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/1.6.5/flowbite.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #5D5CDE;
+            --light-bg: #FFFFFF;
+            --dark-bg: #181818;
+            --light-text: #333333;
+            --dark-text: #F3F4F6;
+            --tile-size: 40px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: var(--dark-bg);
+                color: var(--dark-text);
+            }
+        }
+
+        @media (prefers-color-scheme: light) {
+            body {
+                background-color: var(--light-bg);
+                color: var(--light-text);
+            }
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(7, var(--tile-size));
+            grid-template-rows: repeat(7, var(--tile-size));
+            gap: 2px;
+            margin: 0 auto;
+        }
+
+        .cell {
+            width: var(--tile-size);
+            height: var(--tile-size);
+            border: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .cell {
+                border-color: #555;
+                background-color: #333;
+            }
+        }
+
+        .cell.start {
+            background-color: #4ade80;
+        }
+
+        .cell.end {
+            background-color: #f87171;
+        }
+
+        .cell.player {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .encounter-marker {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #fbbf24;
+        }
+
+        .dialogue-container {
+            animation: fadeIn 0.3s;
+        }
+
+        .choice-btn {
+            transition: all 0.2s;
+        }
+
+        .choice-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border-radius: 8px;
+            background-color: var(--primary-color);
+            color: white;
+            margin: 4px;
+        }
+
+        .mobile-controls {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-controls {
+                display: flex;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        .timer-warning {
+            color: #f87171;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .modal-content {
+                background-color: #2d2d2d;
+                color: white;
+            }
+        }
+
+        @media (max-width: 640px) {
+            :root {
+                --tile-size: 35px;
+            }
+        }
+
+        @media (max-width: 375px) {
+            :root {
+                --tile-size: 30px;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <div class="container mx-auto p-4 flex-grow">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold mb-2">Anti-Fraud Adventure</h1>
+            <p class="text-sm md:text-base">Navigate through the board, avoid scams, and reach the exit!</p>
+        </header>
+
+        <div class="flex flex-col md:flex-row justify-center items-center md:items-start gap-6">
+            <div class="game-info order-2 md:order-1 w-full md:w-auto">
+                <div class="stats bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-4">
+                    <div class="flex justify-between mb-2">
+                        <span class="font-medium">Score:</span>
+                        <span id="score-display" class="font-bold">$2000</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-medium">Time Left:</span>
+                        <span id="timer-display" class="font-bold">10:00</span>
+                    </div>
+                </div>
+                
+                <div class="instructions bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                    <h2 class="font-bold mb-2">How to Play:</h2>
+                    <ul class="text-sm space-y-1 list-disc pl-5">
+                        <li>Use <span class="font-mono bg-gray-200 dark:bg-gray-700 px-1 rounded">WASD</span> or arrow keys to move</li>
+                        <li>Yellow dots indicate possible scam encounters</li>
+                        <li>Make the right choices to avoid being scammed</li>
+                        <li>Reach the red exit cell before time runs out</li>
+                    </ul>
+                </div>
+
+                <div class="mobile-controls flex flex-wrap justify-center mt-4">
+                    <div class="flex justify-center w-full">
+                        <button id="up-btn" class="control-btn">↑</button>
+                    </div>
+                    <div class="flex justify-center">
+                        <button id="left-btn" class="control-btn">←</button>
+                        <button id="down-btn" class="control-btn">↓</button>
+                        <button id="right-btn" class="control-btn">→</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="game-container order-1 md:order-2 flex flex-col items-center">
+                <div id="game-board" class="game-board mb-4"></div>
+                
+                <div id="dialogue-container" class="dialogue-container w-full max-w-md bg-white dark:bg-gray-800 p-4 rounded-lg shadow hidden">
+                    <div id="dialogue-content" class="mb-4"></div>
+                    <div id="dialogue-choices" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="modal-content bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h2 id="modal-title" class="text-2xl font-bold mb-4 text-center"></h2>
+            <p id="modal-message" class="mb-6 text-center"></p>
+            <div class="flex justify-center">
+                <button id="restart-btn" class="px-6 py-3 bg-primary-600 text-white rounded-lg font-medium" style="background-color: var(--primary-color)">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Game variables
+            const BOARD_SIZE = 7;
+            const GAME_TIME = 10 * 60; // 10 minutes in seconds
+            const INITIAL_SCORE = 2000;
+            const ENCOUNTER_CHANCE = 0.3;
+            
+            let playerPosition = { x: 0, y: 0 };
+            let endPosition = { x: BOARD_SIZE - 1, y: BOARD_SIZE - 1 };
+            let score = INITIAL_SCORE;
+            let timeRemaining = GAME_TIME;
+            let gameBoard = [];
+            let encounterLocations = [];
+            let gameActive = true;
+            let timerInterval = null;
+            let currentEncounter = null;
+
+            // DOM elements
+            const gameBoardElement = document.getElementById('game-board');
+            const scoreDisplay = document.getElementById('score-display');
+            const timerDisplay = document.getElementById('timer-display');
+            const dialogueContainer = document.getElementById('dialogue-container');
+            const dialogueContent = document.getElementById('dialogue-content');
+            const dialogueChoices = document.getElementById('dialogue-choices');
+            const gameOverModal = document.getElementById('game-over-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            const restartBtn = document.getElementById('restart-btn');
+            
+            // Mobile control buttons
+            const upBtn = document.getElementById('up-btn');
+            const downBtn = document.getElementById('down-btn');
+            const leftBtn = document.getElementById('left-btn');
+            const rightBtn = document.getElementById('right-btn');
+
+            // Scam scenarios - this would normally be loaded from a CSV
+            const scamScenarios = [
+                {
+                    title: "Investment Opportunity",
+                    description: "A well-dressed person approaches you: 'I have an exclusive investment opportunity that guarantees 50% returns in just one month. Many celebrities are already investing. It requires just $1000 to start.'",
+                    choices: [
+                        { text: "Sign up immediately and transfer the money", outcome: -500, feedback: "Being Scammed! This is a classic investment scam. Legitimate investments don't guarantee returns." },
+                        { text: "Ask for more details about how the investment works", outcome: 500, feedback: "You are correct! Always understand an investment fully before committing any money." },
+                        { text: "Request official documentation and prospectus", outcome: 500, feedback: "You are correct! Official documentation is essential for legitimate investments." },
+                        { text: "Agree to invest half now and half later", outcome: -500, feedback: "Being Scammed! Scammers often try to get any amount they can from victims." }
+                    ]
+                },
+                {
+                    title: "Unexpected Prize",
+                    description: "You receive a message: 'Congratulations! You've won $10,000 in a lottery you didn't enter. To claim your prize, please provide your bank details and pay a small processing fee of $200.'",
+                    choices: [
+                        { text: "Provide bank details and pay the fee", outcome: -500, feedback: "Being Scammed! Legitimate prizes never require upfront fees to claim." },
+                        { text: "Reply asking which lottery this is from", outcome: -500, feedback: "Being Scammed! Engaging with scammers in any way can lead to more targeted scams." },
+                        { text: "Delete the message and block the sender", outcome: 500, feedback: "You are correct! This is a common lottery scam. You can't win a lottery you didn't enter." },
+                        { text: "Share only your name and address to claim the prize", outcome: -500, feedback: "Being Scammed! Never share personal information with unknown contacts." }
+                    ]
+                },
+                {
+                    title: "Tech Support Call",
+                    description: "You receive a call: 'This is Microsoft Tech Support. We've detected a virus on your computer. We need remote access to your computer to fix it immediately.'",
+                    choices: [
+                        { text: "Give them remote access to your computer", outcome: -500, feedback: "Being Scammed! Tech companies don't call users about viruses on their computers." },
+                        { text: "Provide your credit card to pay for the service", outcome: -500, feedback: "Being Scammed! Legitimate tech support doesn't call users unexpectedly." },
+                        { text: "Ask for their employee ID and call back number", outcome: -500, feedback: "Being Scammed! Even if you call back, you might reach the scammers' call center." },
+                        { text: "Hang up and contact official support channels", outcome: 500, feedback: "You are correct! Always verify tech support claims through official channels." }
+                    ]
+                },
+                {
+                    title: "Job Opportunity",
+                    description: "You see an online job posting: 'Work from home, make $5000/week. No experience needed. Just deposit $300 for training materials to get started immediately.'",
+                    choices: [
+                        { text: "Pay the fee to get started right away", outcome: -500, feedback: "Being Scammed! Legitimate employers don't charge fees to start working." },
+                        { text: "Negotiate to have the fee taken from your first paycheck", outcome: -500, feedback: "Being Scammed! This attempt at compromise still plays into the scammer's hands." },
+                        { text: "Research the company online before responding", outcome: 500, feedback: "You are correct! Always research companies before engaging with job offers." },
+                        { text: "Ask for more details about the job responsibilities", outcome: -500, feedback: "Being Scammed! Engaging without verifying can still lead to fraud." }
+                    ]
+                },
+                {
+                    title: "Bank Security Alert",
+                    description: "You receive an email that appears to be from your bank: 'Security Alert: Your account has been compromised. Click this link to verify your identity and restore account access.'",
+                    choices: [
+                        { text: "Click the link and enter your banking details", outcome: -500, feedback: "Being Scammed! This is phishing. Banks never ask for credentials via email links." },
+                        { text: "Reply to the email with your account information", outcome: -500, feedback: "Being Scammed! Never send account information via email." },
+                        { text: "Call the number in the email to verify", outcome: -500, feedback: "Being Scammed! Scammers can provide fake phone numbers in emails." },
+                        { text: "Ignore the email and contact your bank directly", outcome: 500, feedback: "You are correct! Always contact your bank through official channels." }
+                    ]
+                },
+                {
+                    title: "Romance Request",
+                    description: "After chatting online for two weeks, your new romantic interest writes: 'I'm stuck in a foreign country and need $1000 for an emergency flight home. I promise to pay you back when I see you.'",
+                    choices: [
+                        { text: "Send the money immediately via wire transfer", outcome: -500, feedback: "Being Scammed! This is a classic romance scam tactic." },
+                        { text: "Offer to book the flight ticket instead of sending money", outcome: -500, feedback: "Being Scammed! The scammer will find reasons why this won't work." },
+                        { text: "Ask to video chat before making a decision", outcome: 500, feedback: "You are correct! Verifying identity can help avoid romance scams." },
+                        { text: "Send half now and half when they board the plane", outcome: -500, feedback: "Being Scammed! Sending any money is falling for the scam." }
+                    ]
+                },
+                {
+                    title: "Charity Appeal",
+                    description: "After a recent natural disaster, you receive a call: 'We're collecting donations for victims. Every dollar helps. Can you contribute today with your credit card?'",
+                    choices: [
+                        { text: "Donate immediately with your credit card", outcome: -500, feedback: "Being Scammed! Always verify charities before donating." },
+                        { text: "Ask for the charity's registration number and website", outcome: 500, feedback: "You are correct! Legitimate charities will have proper registration." },
+                        { text: "Tell them you'll call back after researching", outcome: 500, feedback: "You are correct! Taking time to verify before donating is smart." },
+                        { text: "Give a small amount just to be safe", outcome: -500, feedback: "Being Scammed! Even small donations to fake charities support scammers." }
+                    ]
+                },
+                {
+                    title: "Government Agency Call",
+                    description: "You get a call: 'This is the Tax Department. You have unpaid taxes and will be arrested today unless you pay $3000 in gift cards immediately.'",
+                    choices: [
+                        { text: "Purchase gift cards and provide the codes", outcome: -500, feedback: "Being Scammed! Government agencies never accept gift cards as payment." },
+                        { text: "Provide your credit card to pay the amount", outcome: -500, feedback: "Being Scammed! Government agencies don't call demanding immediate payment." },
+                        { text: "Ask for a case number and official documents", outcome: 500, feedback: "You are correct! Government agencies send official notices before calling." },
+                        { text: "Hang up and call the official tax department", outcome: 500, feedback: "You are correct! Always verify by contacting official numbers." }
+                    ]
+                },
+                {
+                    title: "Package Delivery Notification",
+                    description: "You receive a text message: 'Your package delivery was attempted. Click here to reschedule or pay a small fee of $3 for redelivery.'",
+                    choices: [
+                        { text: "Click the link and enter payment information", outcome: -500, feedback: "Being Scammed! This is a smishing (SMS phishing) attempt." },
+                        { text: "Reply with your home address for redelivery", outcome: -500, feedback: "Being Scammed! Never share personal information with unknown contacts." },
+                        { text: "Call the delivery company's official number", outcome: 500, feedback: "You are correct! Always verify through official channels." },
+                        { text: "Click the link to see more details first", outcome: -500, feedback: "Being Scammed! Clicking unknown links can install malware." }
+                    ]
+                },
+                {
+                    title: "Social Media Friend Request",
+                    description: "You receive a friend request from someone claiming to be a distant relative: 'Hi, I'm your cousin's friend. I lost my wallet while traveling and need $500 for a hotel tonight.'",
+                    choices: [
+                        { text: "Send money via a money transfer app", outcome: -500, feedback: "Being Scammed! Verify identity before sending money to anyone." },
+                        { text: "Ask for details only your real relative would know", outcome: 500, feedback: "You are correct! Verifying identity can reveal imposters." },
+                        { text: "Contact your cousin directly to verify", outcome: 500, feedback: "You are correct! Always verify through known contacts." },
+                        { text: "Offer to call the hotel and pay directly", outcome: -500, feedback: "Being Scammed! The scammer will have reasons why this won't work." }
+                    ]
+                }
+            ];
+
+            // Initialize the game
+            function initGame() {
+                // Reset game state
+                playerPosition = { x: 0, y: 0 };
+                score = INITIAL_SCORE;
+                timeRemaining = GAME_TIME;
+                gameActive = true;
+                encounterLocations = [];
+                
+                // Update displays
+                updateScoreDisplay();
+                updateTimerDisplay();
+                
+                // Generate encounter locations
+                generateEncounterLocations();
+                
+                // Create the game board
+                createGameBoard();
+                
+                // Start the timer
+                startTimer();
+                
+                // Add keyboard event listeners
+                document.addEventListener('keydown', handleKeyPress);
+                
+                // Add mobile control listeners
+                upBtn.addEventListener('click', () => movePlayer(0, -1));
+                downBtn.addEventListener('click', () => movePlayer(0, 1));
+                leftBtn.addEventListener('click', () => movePlayer(-1, 0));
+                rightBtn.addEventListener('click', () => movePlayer(1, 0));
+                
+                // Add restart button listener
+                restartBtn.addEventListener('click', restartGame);
+            }
+
+            // Create the game board
+            function createGameBoard() {
+                gameBoardElement.innerHTML = '';
+                gameBoard = [];
+                
+                for (let y = 0; y < BOARD_SIZE; y++) {
+                    const row = [];
+                    for (let x = 0; x < BOARD_SIZE; x++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        
+                        // Add cell type classes
+                        if (x === 0 && y === 0) {
+                            cell.classList.add('start');
+                        } else if (x === endPosition.x && y === endPosition.y) {
+                            cell.classList.add('end');
+                        }
+                        
+                        // Add player if at current position
+                        if (x === playerPosition.x && y === playerPosition.y) {
+                            cell.classList.add('player');
+                        }
+                        
+                        // Add encounter marker if applicable
+                        if (hasEncounter(x, y)) {
+                            const marker = document.createElement('div');
+                            marker.className = 'encounter-marker';
+                            cell.appendChild(marker);
+                        }
+                        
+                        gameBoardElement.appendChild(cell);
+                        row.push(cell);
+                    }
+                    gameBoard.push(row);
+                }
+            }
+
+            // Generate random encounter locations
+            function generateEncounterLocations() {
+                for (let y = 0; y < BOARD_SIZE; y++) {
+                    for (let x = 0; x < BOARD_SIZE; x++) {
+                        // Skip start and end positions
+                        if ((x === 0 && y === 0) || (x === endPosition.x && y === endPosition.y)) {
+                            continue;
+                        }
+                        
+                        // Random chance to create an encounter
+                        if (Math.random() < ENCOUNTER_CHANCE) {
+                            encounterLocations.push({ x, y });
+                        }
+                    }
+                }
+            }
+
+            // Check if a position has an encounter
+            function hasEncounter(x, y) {
+                return encounterLocations.some(pos => pos.x === x && pos.y === y);
+            }
+
+            // Find encounter at position
+            function getEncounterAtPosition(x, y) {
+                return encounterLocations.find(pos => pos.x === x && pos.y === y);
+            }
+
+            // Handle player movement
+            function movePlayer(dx, dy) {
+                if (!gameActive || dialogueContainer.classList.contains('block')) {
+                    return;
+                }
+                
+                const newX = playerPosition.x + dx;
+                const newY = playerPosition.y + dy;
+                
+                // Check if the new position is within bounds
+                if (newX >= 0 && newX < BOARD_SIZE && newY >= 0 && newY < BOARD_SIZE) {
+                    // Update the game board
+                    gameBoard[playerPosition.y][playerPosition.x].classList.remove('player');
+                    gameBoard[newY][newX].classList.add('player');
+                    
+                    // Update player position
+                    playerPosition = { x: newX, y: newY };
+                    
+                    // Check for encounters
+                    checkForEncounter();
+                    
+                    // Check if player reached the end
+                    checkForGameEnd();
+                }
+            }
+
+            // Handle keyboard input
+            function handleKeyPress(event) {
+                if (!gameActive || dialogueContainer.classList.contains('block')) {
+                    return;
+                }
+                
+                switch (event.key) {
+                    case 'ArrowUp':
+                    case 'w':
+                    case 'W':
+                        movePlayer(0, -1);
+                        break;
+                    case 'ArrowDown':
+                    case 's':
+                    case 'S':
+                        movePlayer(0, 1);
+                        break;
+                    case 'ArrowLeft':
+                    case 'a':
+                    case 'A':
+                        movePlayer(-1, 0);
+                        break;
+                    case 'ArrowRight':
+                    case 'd':
+                    case 'D':
+                        movePlayer(1, 0);
+                        break;
+                }
+            }
+
+            // Check for encounter at current position
+            function checkForEncounter() {
+                if (hasEncounter(playerPosition.x, playerPosition.y)) {
+                    // Get a random scenario
+                    const encounter = getEncounterAtPosition(playerPosition.x, playerPosition.y);
+                    if (encounter) {
+                        // Remove this encounter from future possibilities
+                        encounterLocations = encounterLocations.filter(pos => 
+                            !(pos.x === encounter.x && pos.y === encounter.y));
+                        
+                        // Show the dialogue for this encounter
+                        showRandomScenario();
+                    }
+                }
+            }
+
+            // Show a random scam scenario
+            function showRandomScenario() {
+                // Get a random scenario from our list
+                const scenarioIndex = Math.floor(Math.random() * scamScenarios.length);
+                currentEncounter = scamScenarios[scenarioIndex];
+                
+                // Update the dialogue content
+                dialogueContent.innerHTML = `
+                    <h3 class="text-lg font-bold mb-2">${currentEncounter.title}</h3>
+                    <p>${currentEncounter.description}</p>
+                `;
+                
+                // Clear previous choices
+                dialogueChoices.innerHTML = '';
+                
+                // Add the choices
+                currentEncounter.choices.forEach((choice, index) => {
+                    const button = document.createElement('button');
+                    button.className = 'choice-btn w-full text-left p-3 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700';
+                    button.textContent = choice.text;
+                    button.addEventListener('click', () => handleChoice(choice));
+                    dialogueChoices.appendChild(button);
+                });
+                
+                // Show the dialogue container
+                dialogueContainer.classList.remove('hidden');
+                dialogueContainer.classList.add('block');
+            }
+
+            // Handle player choice in scenario
+            function handleChoice(choice) {
+                // Update score based on choice
+                score += choice.outcome;
+                updateScoreDisplay();
+                
+                // Show feedback
+                dialogueContent.innerHTML = `
+                    <h3 class="text-lg font-bold mb-2">${currentEncounter.title}</h3>
+                    <p class="mb-4">${currentEncounter.description}</p>
+                    <div class="p-3 rounded-lg ${choice.outcome > 0 ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'} mb-4">
+                        <p class="font-bold">${choice.feedback}</p>
+                    </div>
+                `;
+                
+                // Hide choices
+                dialogueChoices.innerHTML = '';
+                
+                // Add continue button
+                const continueBtn = document.createElement('button');
+                continueBtn.className = 'w-full p-3 rounded-lg bg-primary-600 text-white font-medium';
+                continueBtn.style.backgroundColor = 'var(--primary-color)';
+                continueBtn.textContent = 'Continue';
+                continueBtn.addEventListener('click', () => {
+                    dialogueContainer.classList.remove('block');
+                    dialogueContainer.classList.add('hidden');
+                });
+                dialogueChoices.appendChild(continueBtn);
+                
+                // Check if game should end due to score
+                if (score <= 0) {
+                    endGame(false, "You've lost all your money to scammers!");
+                }
+            }
+
+            // Check if the game has ended
+            function checkForGameEnd() {
+                if (playerPosition.x === endPosition.x && playerPosition.y === endPosition.y) {
+                    endGame(true, "Congratulations! You successfully reached the end!");
+                }
+            }
+
+            // Start the game timer
+            function startTimer() {
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                }
+                
+                timerInterval = setInterval(() => {
+                    timeRemaining--;
+                    updateTimerDisplay();
+                    
+                    if (timeRemaining <= 0) {
+                        endGame(false, "Time's up! You didn't reach the exit in time.");
+                    }
+                }, 1000);
+            }
+
+            // Update the timer display
+            function updateTimerDisplay() {
+                const minutes = Math.floor(timeRemaining / 60);
+                const seconds = timeRemaining % 60;
+                timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Add warning class if time is running low
+                if (timeRemaining <= 60) {
+                    timerDisplay.classList.add('timer-warning', 'pulse');
+                } else {
+                    timerDisplay.classList.remove('timer-warning', 'pulse');
+                }
+            }
+
+            // Update the score display
+            function updateScoreDisplay() {
+                scoreDisplay.textContent = `$${score}`;
+            }
+
+            // End the game
+            function endGame(isWin, message) {
+                // Stop the timer
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+                
+                // Set game as inactive
+                gameActive = false;
+                
+                // Show the game over modal
+                modalTitle.textContent = isWin ? "Victory!" : "Game Over";
+                modalMessage.textContent = `${message} Your final score: $${score}`;
+                gameOverModal.classList.remove('hidden');
+                
+                // Remove keyboard event listener
+                document.removeEventListener('keydown', handleKeyPress);
+            }
+
+            // Restart the game
+            function restartGame() {
+                // Hide the game over modal
+                gameOverModal.classList.add('hidden');
+                
+                // Re-initialize the game
+                initGame();
+            }
+
+            // Initialize the game when the page loads
+            initGame();
+        });
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/1.6.5/flowbite.min.js"></script>
+
+
+</body></html>
